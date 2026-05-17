@@ -1,0 +1,19 @@
+{
+  "name": "claude-mirror",
+  "version": "0.1.0",
+  "description": "Back up your entire Claude Code setup (CLAUDE.md, settings, memories, plugin list) to a private GitHub gist. Restore it on any machine in seconds.",
+  "author": {
+    "name": "rctom16-bit"
+  },
+  "homepage": "https://github.com/rctom16-bit/claude-mirror",
+  "repository": "https://github.com/rctom16-bit/claude-mirror",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "backup",
+    "restore",
+    "sync",
+    "dotfiles",
+    "gist"
+  ]
+}
