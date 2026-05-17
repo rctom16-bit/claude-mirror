@@ -2,7 +2,6 @@
   "name": "claude-mirror",
   "version": "0.1.0",
   "description": "Single-plugin marketplace for claude-mirror.",
-  "repository": "https://github.com/rctom16-bit/claude-mirror",
   "owner": {
     "name": "rctom16-bit"
   },
