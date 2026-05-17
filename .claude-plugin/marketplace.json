@@ -1,0 +1,16 @@
+{
+  "name": "claude-mirror",
+  "version": "0.1.0",
+  "description": "Single-plugin marketplace for claude-mirror.",
+  "repository": "https://github.com/rctom16-bit/claude-mirror",
+  "owner": {
+    "name": "rctom16-bit"
+  },
+  "plugins": [
+    {
+      "name": "claude-mirror",
+      "source": "./",
+      "description": "Back up your entire Claude Code setup (CLAUDE.md, settings, memories, plugin list) to a private GitHub gist. Restore it on any machine in seconds."
+    }
+  ]
+}
