@@ -8,14 +8,16 @@ Your global `CLAUDE.md`, your settings, your project memories, your list of inst
 
 ## What it does
 
-Four slash commands:
+One slash command, `/claude-mirror:mirror`, with four subcommands:
 
 | Command | What it does |
 |---|---|
-| `/mirror backup` | Snapshots your Claude setup and uploads it to a private GitHub gist. Updates the same gist on every run, so you build a clean revision history. |
-| `/mirror restore` | Pulls a snapshot back down onto any machine. Always confirms before overwriting anything. Always makes a safety copy first. |
-| `/mirror status` | Shows what's backed up, when, from where, and which local files have drifted since the last backup. |
-| `/mirror list` | Shows every snapshot you've ever made, with timestamps and direct links to each historical version. |
+| `/claude-mirror:mirror backup` | Snapshots your Claude setup and uploads it to a private GitHub gist. Updates the same gist on every run, so you build a clean revision history. |
+| `/claude-mirror:mirror restore` | Pulls a snapshot back down onto any machine. Always confirms before overwriting anything. Always makes a safety copy first. |
+| `/claude-mirror:mirror status` | Shows what's backed up, when, from where, and which local files have drifted since the last backup. |
+| `/claude-mirror:mirror list` | Shows every snapshot you've ever made, with timestamps and direct links to each historical version. |
+
+> The `claude-mirror:` prefix is required — Claude Code namespaces every plugin command as `/<plugin>:<command>` to prevent name collisions between plugins.
 
 ## Install
 
@@ -27,24 +29,27 @@ You need:
 Then in Claude:
 
 ```
-/plugin install rctom16-bit/claude-mirror
+/plugin marketplace add rctom16-bit/claude-mirror
+/plugin install claude-mirror@claude-mirror
 ```
+
+The first line registers this repo as a (single-plugin) marketplace; the second installs the plugin from it.
 
 ## Quick start
 
 ```
-/mirror backup
+/claude-mirror:mirror backup
 ```
 
-The first run creates a new private gist on your GitHub account and saves its ID locally. Every subsequent `/mirror backup` updates the same gist, building a revision history.
+The first run creates a new private gist on your GitHub account and saves its ID locally. Every subsequent `/claude-mirror:mirror backup` updates the same gist, building a revision history.
 
 To restore on a new machine:
 
 ```
-/mirror restore <gist-id>
+/claude-mirror:mirror restore <gist-id>
 ```
 
-Where `<gist-id>` is the ID from the URL of the gist `/mirror backup` created (e.g. `abc123def456`). You can copy it from `gh gist list` on the original machine.
+Where `<gist-id>` is the ID from the URL of the gist `/claude-mirror:mirror backup` created (e.g. `abc123def456`). You can copy it from `gh gist list` on the original machine.
 
 ## What's included in a backup
 
@@ -78,7 +83,7 @@ When you restore, redacted secrets are restored as `"<REDACTED>"` placeholders. 
 
 - **Restore always makes a backup of your existing files first** — into `~/.claude/.mirror-backup-before-restore-<timestamp>/` — before overwriting anything. If a restore goes wrong, your previous state is recoverable.
 - **Restore always asks for confirmation** with a clear list of what will be overwritten, before touching anything.
-- **`/mirror backup` shows you the file list and redactions** before uploading, and requires you to confirm.
+- **`/claude-mirror:mirror backup` shows you the file list and redactions** before uploading, and requires you to confirm.
 
 ## How it works (under the hood)
 
@@ -96,7 +101,7 @@ This means:
 In a private GitHub gist owned by you, on your account. Private gists are not listed publicly, but they are accessible to anyone with the URL — treat the URL as a secret.
 
 **Can I share my backup with someone else?**
-You can — just give them the gist URL and have them run `/mirror restore <gist-id>`. They'll get your full setup. Useful for sharing a curated config with a teammate.
+You can — just give them the gist URL and have them run `/claude-mirror:mirror restore <gist-id>`. They'll get your full setup. Useful for sharing a curated config with a teammate.
 
 **Does it back up plugin code?**
 No — only the **list** of installed plugin names. On restore, `claude-mirror` prints `/plugin install <name>` commands you can run. This keeps the backup tiny and means you always get the latest version of each plugin.
@@ -109,7 +114,7 @@ Usually under 100 KB. Even with many projects and large memory files, it's well 
 
 ## Roadmap
 
-- Per-snapshot restore (currently restores the latest snapshot only; older snapshots are viewable via `/mirror list`)
+- Per-snapshot restore (currently restores the latest snapshot only; older snapshots are viewable via `/claude-mirror:mirror list`)
 - Optional encryption layer (pass a password, encrypt the gist contents client-side)
 - Selective backup (exclude specific projects)
 

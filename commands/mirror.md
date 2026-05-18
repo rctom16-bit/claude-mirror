@@ -4,7 +4,7 @@ description: Back up, restore, or inspect your Claude Code setup (backup | resto
 disable-model-invocation: false
 ---
 
-The user invoked `/mirror`. Look at the first word of the user's argument (`$ARGUMENTS`) to decide which operation to run:
+The user invoked `/claude-mirror:mirror`. Look at the first word of the user's argument (`$ARGUMENTS`) to decide which operation to run:
 
 - `backup` (or no argument) → follow the **BACKUP** section below
 - `restore [gist-id-or-url]` → follow the **RESTORE** section
@@ -50,7 +50,11 @@ Collect these files (use the Read tool on each; skip silently any that don't exi
 - `~/.claude/keybindings.json`
 
 **Per-project memory files:**
-- Use Glob to find every `~/.claude/projects/*/memory/*.md` file. Include all of them (including each `MEMORY.md` index).
+- Glob does not reliably expand `~`. Resolve the home directory to an absolute path first, then pass that absolute path to Glob:
+  1. On Windows: read `$env:USERPROFILE` via PowerShell (e.g., `C:\Users\Robin`). On macOS/Linux: use `$HOME` (or `$USERPROFILE` in bash on Windows).
+  2. Call Glob with the resolved absolute pattern, e.g. `C:/Users/Robin/.claude/projects/*/memory/*.md` (forward slashes are fine; Glob accepts them on Windows).
+  3. If Glob still returns zero matches, fall back to a recursive shell listing — on Windows run `Get-ChildItem -Path "$env:USERPROFILE\.claude\projects" -Recurse -Filter "*.md" | Where-Object { $_.FullName -match '\\memory\\' }` via PowerShell; on macOS/Linux run `find "$HOME/.claude/projects" -type f -path "*/memory/*.md"` via bash.
+- Include all matches (including each `MEMORY.md` index).
 
 **Never include (skip these even if asked):**
 - `~/.claude/credentials.json` — contains login tokens.
@@ -84,7 +88,9 @@ Gists can't have nested folders — every file is flat. To preserve paths:
 
 ### Step 8: Build the manifest
 
-Create a `manifest.json` with this structure:
+Read the plugin's own version at runtime: open `<plugin-root>/.claude-plugin/plugin.json` and use its `version` field as the value of `claudeMirrorVersion` below. The plugin root is `${CLAUDE_PLUGIN_ROOT}` if Claude Code has set it; otherwise walk up two directories from this command file (`commands/mirror.md` → plugin root). Never hardcode the version in the manifest — always reflect what's currently shipped.
+
+Create a `manifest.json` with this structure (the version shown is just illustrative — substitute whatever you read from `plugin.json`):
 
 ```json
 {
@@ -92,7 +98,7 @@ Create a `manifest.json` with this structure:
   "createdAt": "<ISO 8601 timestamp, UTC>",
   "machine": "<hostname>",
   "platform": "<win32 | darwin | linux>",
-  "claudeMirrorVersion": "0.1.0",
+  "claudeMirrorVersion": "<read from .claude-plugin/plugin.json>",
   "files": [
     { "gistName": "CLAUDE.md", "originalPath": "~/.claude/CLAUDE.md" },
     { "gistName": "settings.json", "originalPath": "~/.claude/settings.json", "sanitized": true, "redactedKeys": ["env.OPENAI_API_KEY"] }
@@ -132,16 +138,18 @@ Proceed? (yes/no)
 
 **For a new gist:**
 1. Write all the prepared files (encoded names + sanitized contents + manifest.json) to a temp directory.
-2. Run `gh gist create --private --desc "Claude Code setup backup — managed by claude-mirror" <temp-dir>/*` and capture the gist URL from stdout.
+2. Run `gh gist create --desc "Claude Code setup backup — managed by claude-mirror" <temp-dir>/*` and capture the gist URL from stdout. Note: `gh gist create` has no `--private` flag — omitting `--public` already produces a secret (unlisted) gist, which is what we want.
 3. Extract the gist ID from the URL (last path segment).
 4. Save the gist ID to `~/.claude/.mirror-gist-id`.
 5. Clean up the temp directory.
 
 **For an existing gist (update):**
 1. Write all prepared files to a temp directory.
-2. For each file, use `gh gist edit <gist-id> --add <temp-path>` (or `--filename` style depending on what works for adding/updating).
-3. If you detect orphans (files in the gist that no longer exist locally), list them and ask the user whether to remove them.
-4. Clean up the temp directory.
+2. **List current gist contents first** (so you can detect orphans later): run `gh gist view <gist-id> --files` and capture the set of filenames currently in the gist.
+3. **Add or update files**: for each file in the temp directory, run `gh gist edit <gist-id> --add <local-file-path>`. `gh` uses the basename of the local file as the gist filename — if a file with that name already exists in the gist, this replaces it; otherwise it adds a new one. Run this once per file.
+4. **Detect orphans**: compute the set difference (filenames in the gist from step 2) − (filenames you just uploaded in step 3). Anything left over is an orphan — a file that exists in the gist but is no longer part of the local backup.
+5. **Always ask the user before removing any orphan.** List the orphan filenames and ask explicitly whether to delete each (or all). Never auto-remove. If the user confirms, run `gh gist edit <gist-id> --remove <gistName>` once per orphan to delete.
+6. Clean up the temp directory.
 
 ### Step 11: Confirm success
 
@@ -156,8 +164,9 @@ Print the gist URL and a summary:
 
   To restore on another machine:
     1. Install gh CLI, sign in, install Claude Code
-    2. /plugin install claude-mirror (after adding the marketplace)
-    3. /mirror restore <gist-id>
+    2. /plugin marketplace add rctom16-bit/claude-mirror
+       /plugin install claude-mirror@claude-mirror
+    3. /claude-mirror:mirror restore <gist-id>
 ```
 
 ### Backup errors and edge cases
@@ -189,7 +198,7 @@ Check in this order:
 
 1. **If the user passed a gist ID or gist URL as an argument** (after `restore`) — use that. Extract the gist ID from URLs of the form `https://gist.github.com/<user>/<id>`.
 2. **If `~/.claude/.mirror-gist-id` exists** — read the ID from it and ask the user "Restore from your saved backup gist `<id>`?" before proceeding.
-3. **Otherwise** — list the user's recent gists with `gh gist list --limit 20` and look for ones whose description starts with "Claude Code setup backup". Show them and ask which one to use. If none found, tell the user "No backup gist found. Pass a gist ID or URL: `/mirror restore <gist-id>`."
+3. **Otherwise** — list the user's recent gists with `gh gist list --limit 20` and look for ones whose description starts with "Claude Code setup backup". Show them and ask which one to use. If none found, tell the user "No backup gist found. Pass a gist ID or URL: `/claude-mirror:mirror restore <gist-id>`."
 
 ### Step 3: Fetch the gist and read the manifest
 
@@ -249,7 +258,7 @@ For each entry in the manifest's `files` array:
 
 ### Step 8: Save the gist ID locally
 
-Write the gist ID to `~/.claude/.mirror-gist-id` so future `/mirror backup` calls update this same gist.
+Write the gist ID to `~/.claude/.mirror-gist-id` so future `/claude-mirror:mirror backup` calls update this same gist.
 
 ### Step 9: Print the re-install commands for plugins
 
@@ -303,8 +312,8 @@ Read `~/.claude/.mirror-gist-id`. If it doesn't exist, tell the user:
 ```
 No claude-mirror backup found on this machine.
 
-To create one: /mirror backup
-To restore one from another machine: /mirror restore <gist-id>
+To create one: /claude-mirror:mirror backup
+To restore one from another machine: /claude-mirror:mirror restore <gist-id>
 ```
 
 Stop.
@@ -313,7 +322,7 @@ Stop.
 
 1. Run `gh api gists/<gist-id>` to get full metadata (URL, created/updated times, file list, revision count).
 2. Run `gh gist view <gist-id> --filename manifest.json` to read the manifest.
-3. If the gist no longer exists (404), tell the user: "Saved gist ID `<id>` no longer exists on GitHub. Run `/mirror backup` to create a fresh one." Stop.
+3. If the gist no longer exists (404), tell the user: "Saved gist ID `<id>` no longer exists on GitHub. Run `/claude-mirror:mirror backup` to create a fresh one." Stop.
 
 ### Step 3: Compare local state to backup
 
@@ -332,7 +341,7 @@ claude-mirror status
   Backup gist:    https://gist.github.com/<user>/<gist-id>
   Last backup:    2026-05-17 14:32 UTC (3 hours ago)
   Last backup from: ROBIN-LAPTOP (win32)
-  Total snapshots: 7  (use /mirror list to see all)
+  Total snapshots: 7  (use /claude-mirror:mirror list to see all)
 
 Local vs backup:
   ✓ 11 files unchanged
@@ -345,7 +354,7 @@ Local vs backup:
 
 Plugins recorded in backup: pulse, code-review, frontend-design, superpowers
 
-Run /mirror backup to push the 3 changes above.
+Run /claude-mirror:mirror backup to push the 3 changes above.
 ```
 
 If everything is in sync, say so cleanly:
@@ -364,14 +373,14 @@ If everything is in sync, say so cleanly:
 
 ## LIST
 
-Show every revision (snapshot) of the user's backup gist — every `/mirror backup` they've ever run is a separate revision they can roll back to.
+Show every revision (snapshot) of the user's backup gist — every `/claude-mirror:mirror backup` they've ever run is a separate revision they can roll back to.
 
 ### Step 1: Find the gist ID
 
 Read `~/.claude/.mirror-gist-id`. If it doesn't exist, tell the user:
 
 ```
-No backup gist found on this machine. Run /mirror backup first.
+No backup gist found on this machine. Run /claude-mirror:mirror backup first.
 ```
 
 Stop.
@@ -405,7 +414,7 @@ To restore from a specific snapshot:
   - Open the snapshot URL in your browser to see exactly what was in it.
   - To roll back, download the manifest.json + files from that snapshot URL,
     place them in a folder, and a future version of claude-mirror will support
-    restoring from that folder. For now, /mirror restore <gist-id> always uses
+    restoring from that folder. For now, /claude-mirror:mirror restore <gist-id> always uses
     the most recent snapshot.
 ```
 
