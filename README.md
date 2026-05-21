@@ -87,7 +87,7 @@ When you restore, redacted secrets are restored as `"<REDACTED>"` placeholders. 
 
 ## How it works (under the hood)
 
-`claude-mirror` is intentionally tiny — about 200 lines of markdown total, no code, no dependencies beyond `gh`. Each slash command is a markdown file in `commands/` that gives Claude an exact recipe to follow. Claude does the work (read files, sanitize JSON, call `gh gist`) on your machine, with you watching.
+`claude-mirror` is intentionally small — a few hundred lines of markdown, no code, no dependencies beyond `gh`. The single slash command lives in `commands/mirror.md` and gives Claude an exact recipe to follow. Claude does the work (read files, sanitize JSON, call `gh gist`) on your machine, with you watching.
 
 This means:
 
@@ -101,16 +101,16 @@ This means:
 In a private GitHub gist owned by you, on your account. Private gists are not listed publicly, but they are accessible to anyone with the URL — treat the URL as a secret.
 
 **Can I share my backup with someone else?**
-You can — just give them the gist URL and have them run `/claude-mirror:mirror restore <gist-id>`. They'll get your full setup. Useful for sharing a curated config with a teammate.
+You can — give them the gist URL. After they install the plugin themselves, they run `/claude-mirror:mirror restore <gist-id>` and get your full setup. Useful for sharing a curated config with a teammate.
 
 **Does it back up plugin code?**
-No — only the **list** of installed plugin names. On restore, `claude-mirror` prints `/plugin install <name>` commands you can run. This keeps the backup tiny and means you always get the latest version of each plugin.
+No — only the **list** of installed plugin names. On restore, `claude-mirror` prints the install commands you can run (for plugins from custom marketplaces, you may need a `/plugin marketplace add` line first). This keeps the backup tiny and means you always get the latest version of each plugin.
 
 **What if I lose my gist ID?**
 Run `gh gist list` on any machine where you're signed into the same GitHub account. Look for the one described "Claude Code setup backup — managed by claude-mirror".
 
 **How big is a typical backup?**
-Usually under 100 KB. Even with many projects and large memory files, it's well within GitHub gist limits.
+Usually a few hundred KB. Even with many projects and large memory files, it's well within GitHub gist limits.
 
 ## Roadmap
 
